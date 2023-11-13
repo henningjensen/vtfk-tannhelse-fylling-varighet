@@ -165,6 +165,12 @@ public class Program
             }
         }
 
+        using (StreamWriter outputFile = new StreamWriter("output-durations.txt"))
+        {
+            foreach(var d in duration) 
+                outputFile.WriteLine(d);
+        }
+
         double eventsCount = duration.Count;
         
         Console.WriteLine("");
@@ -184,6 +190,7 @@ public class Program
         double percentageDurationMoreThan10Year = Math.Round((eventsDurationMoreThan10Year / eventsCount) * 100,1);
         
         Console.WriteLine($"Duration more than 10 years: {percentageDurationMoreThan10Year} % ({eventsDurationMoreThan10Year} of {eventsCount} events)");
+        
     }
 
     string? Format(DateTime? date)
