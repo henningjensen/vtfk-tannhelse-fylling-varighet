@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using System.Data.Common;
 using System.Data.Odbc;
 using System.Globalization;
@@ -58,7 +58,11 @@ public class Program
 
     async Task LookupDentalRestorationForPatients()
     {
-        Console.WriteLine("AnoPID;initDate;initPCE;eventDate;eventPCE;lastExamDate");
+        // save all durations for statistics
+        HashSet<double> duration = new HashSet<double>();
+        
+        if (Debug)
+            Console.WriteLine("AnoPID;initDate;initPCE;eventDate;eventPCE;lastExamDate");
 
         using (var connection = GetDbConnection())
         {
@@ -94,11 +98,13 @@ public class Program
                 {
                     csv.WriteHeader<CsvRow>();
                     csv.NextRecord();
-                    
+
+                    int counter = 0;
                     using (var reader = command.ExecuteReader())
                     {
                         while (reader.Read())
                         {
+                            counter++;
                             var patientId = reader.GetString(0);
                             var date = reader.GetDateTime(1);
                             var sctTotal = reader.GetString(2);
@@ -130,15 +136,54 @@ public class Program
                             });
                             csv.NextRecord();
 
+                            // calculate statistics
+                            if (nearestEvent?.Date != null)
+                            {
+                                double durationInDays = nearestEvent.Date.Subtract(date).TotalDays;
+                                
+                                duration.Add(durationInDays);
+                            } else if (lastExamDate != null)
+                            {
+                                double durationInDays = lastExamDate.Date.Subtract(date).TotalDays;
+                                if (durationInDays >= (365 * 5)) // only count this entry if last examination was more than 5 years ago
+                                {
+                                    duration.Add(durationInDays);
+                                }
+                            }
 
-
-                            Console.WriteLine(
-                                $"{patientId};{Format(date)};{sctTotal};{Format(nearestEvent?.Date)};{nearestEvent?.SctTotal};{Format(lastExamDate)}");
+                            if (Debug)
+                                Console.WriteLine(
+                                    $"{patientId};{Format(date)};{sctTotal};{Format(nearestEvent?.Date)};{nearestEvent?.SctTotal};{Format(lastExamDate)}");
+                            else
+                            {
+                                Console.Write($"\rEvents: {counter}"); // \r resets cursor back to start of line
+                            }
                         }
+                        Console.WriteLine("\r                                 "); // clear line
                     }
                 }
             }
         }
+
+        double eventsCount = duration.Count;
+        
+        Console.WriteLine("");
+        Console.WriteLine("## Statistics");
+        Console.WriteLine("");
+        Console.WriteLine($"{eventsCount} events included in statistics");
+        double averageDuration = Math.Floor(duration.Sum() / eventsCount);
+        double averageDurationInYears = Math.Round(averageDuration / 365, 2);
+        Console.WriteLine($"Average duration of PCE: {averageDuration} days or {averageDurationInYears} years");
+
+        double eventsDurationMoreThan5Year = duration.Count(d => d >= (365 * 5));
+        double percentageDurationMoreThan5Year = Math.Round((eventsDurationMoreThan5Year / eventsCount) * 100,1);
+        
+        Console.WriteLine($"Duration more than 5 years: {percentageDurationMoreThan5Year} % ({eventsDurationMoreThan5Year} of {eventsCount} events)");
+        
+        double eventsDurationMoreThan10Year = duration.Count(d => d >= (365 * 10));
+        double percentageDurationMoreThan10Year = Math.Round((eventsDurationMoreThan10Year / eventsCount) * 100,1);
+        
+        Console.WriteLine($"Duration more than 10 years: {percentageDurationMoreThan10Year} % ({eventsDurationMoreThan10Year} of {eventsCount} events)");
     }
 
     string? Format(DateTime? date)
