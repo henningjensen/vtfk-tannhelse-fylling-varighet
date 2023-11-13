@@ -198,17 +198,18 @@ public class Program
         var command = connection.CreateCommand();
         command.CommandText = @"SELECT
         AnoPID,
-        MAX(Date) AS SisteUS,
+        ISNULL(MAX(Date),NULL) AS SisteUS,
         SCTtotal
         FROM PcJSON
         WHERE SCTtotal = '34043003'
-        Group By AnoPID";
+        Group By AnoPID, SCTtotal";
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
             var anoPid = reader.GetString(0);
-            var date = reader.GetDateTime(1);
-            examinationDates.Add(anoPid, date);
+            var date = reader[1] as DateTime?;
+            if (date != null) // skip entries with NULL-dates
+                examinationDates.Add(anoPid, date.Value);
         }
 
         return examinationDates;
