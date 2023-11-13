@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Data.Common;
 using System.Data.Odbc;
 using System.Globalization;
@@ -313,9 +313,11 @@ public class Program
 
     async Task<List<PostCoordinatedExpression>> GetPostCoordinatedExpressions()
     {
+        string selectedCardinality = AskConsoleUserAboutCardinality();
+        
         var url = new Url("https://xsct.norwayeast.cloudapp.azure.com/fhir/ValueSet/$expand")
             .SetQueryParam("url",
-                "http://snomed.info/xsct/11000003106?fhir_vs=ecl/%3C%3C234785005:363701004=256452006,363704007=%3C%3C76424003,[2..2]363704007=%3C%3C245644000");
+                $"http://snomed.info/xsct/11000003106?fhir_vs=ecl/<<234789004 |Insertion of composite restoration into tooth|:{selectedCardinality}363704007 |Procedure site|=<<245644000 |Structure of single tooth surface|");
 
         var result = await AppendBasicAuth(url).GetJsonAsync<FhirValueSetResponse>();
 
@@ -326,6 +328,46 @@ public class Program
                new List<PostCoordinatedExpression>();
     }
 
+    string AskConsoleUserAboutCardinality()
+    {
+        int[] numericOptions = { 1, 2, 3, 4, 5, 6 };
+        string[] cardinalityValues = { "%5B1..1%5D", "%5B2..2%5D", "%5B3..3%5D", "%5B4..4%5D", "%5B5..5%5D", "%5B1..5%5D" };
+        string[] cardinalityText = { "1 flate", "2 flater", "3 flater", "4 flater", "5 flater", "Alle" };
+
+        for (int i = 0; i < numericOptions.Length; i++)
+        {
+            Console.WriteLine($"{numericOptions[i]} - {cardinalityText[i]}");
+        }
+
+        int selectedOption = GetUserNumericChoice(numericOptions);
+        
+        if (selectedOption < 1 || selectedOption > numericOptions.Length)
+            throw new Exception("Invalid selection of cardinality: " + selectedOption);
+
+        string selectedCardinalityValue = cardinalityValues[selectedOption - 1];
+        Console.WriteLine($"You selected {selectedOption} - {selectedCardinalityValue}");
+            
+        return selectedCardinalityValue;
+    }
+    static int GetUserNumericChoice(int[] options)
+    {
+        // Get user input
+
+        int selectedOption;
+        while (true)
+        {
+            Console.Write("Enter the number of your choice: ");
+            if (int.TryParse(Console.ReadLine(), out selectedOption) && options.Contains(selectedOption))
+            {
+                break;
+            }
+            Console.WriteLine("Invalid input. Please enter a valid number.");
+        }
+
+        return selectedOption;
+    }
+    
+    
     async Task<Dictionary<string, SctConcept>> GetSurfaces()
     {
         var url = new Url("https://xsct.norwayeast.cloudapp.azure.com/fhir/ValueSet/$expand")
