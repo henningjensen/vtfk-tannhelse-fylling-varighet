@@ -5,6 +5,7 @@
 
 appsettings.json
 .idea
+patients.db
 
 # User-specific files
 *.rsuser
